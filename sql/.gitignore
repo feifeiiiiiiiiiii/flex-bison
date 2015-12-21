@@ -1,0 +1,5 @@
+sql
+*.lex.c
+*.tab.h
+*.tab.c
+*.txt
