@@ -34,6 +34,12 @@ void emit(char *s, ...);
 %token WHERE
 %token SELECT
 %token FROM
+%token LIMIT
+%token ORDER
+%token BY
+%token GROUP
+%token ASC
+%token DESC
 
 %right ASSIGN
 %left OR
@@ -47,6 +53,7 @@ void emit(char *s, ...);
 
 %type <intval> table_references
 %type <intval> select_opts select_expr_list
+%type <intval> groupby_list opt_asc_desc
 
 %start stmt_list
 
@@ -59,8 +66,8 @@ stmt_list: stmt ';'
 stmt: select_stmt { emit("STMT"); }
    ;
 
-select_stmt: SELECT select_opts select_expr_list FROM table_references opt_where
-              { emit("SELECT %d %d", $2, $3); } ;
+select_stmt: SELECT select_opts select_expr_list FROM table_references opt_where opt_orderby opt_limit
+              { emit("SELECT %d %d", $2, $3); };
 
 select_expr_list: select_expr { $$ = 1; }
     | select_expr_list ',' select_expr {$$ = $1 + 1; }
@@ -71,6 +78,21 @@ table_references:    table_reference { $$ = 1; }
     | table_references ',' table_reference { $$ = $1 + 1; }
     ;
 
+
+opt_orderby: /* nil */ | ORDER BY groupby_list { emit("ORDERBY %d", $3); }
+   ;
+
+groupby_list: expr opt_asc_desc
+                             { emit("GROUPBY %d",  $2); $$ = 1; }
+   | groupby_list ',' expr opt_asc_desc
+                             { emit("GROUPBY %d",  $4); $$ = $1 + 1; }
+   ;
+
+opt_asc_desc: /* nil */ { $$ = 0; }
+   | ASC                { $$ = 0; }
+   | DESC               { $$ = 1; }
+    ;
+
 table_factor:
     NAME  { emit("TABLE %s", $1); free($1); }
   | NAME '.' NAME { emit("TABLE %s.%s", $1, $3);
@@ -78,6 +100,10 @@ table_factor:
 
 table_reference:  table_factor;
 
+
+opt_limit: /* nil */ | LIMIT expr { emit("LIMIT 1"); }
+  | LIMIT expr ',' expr    { emit("LIMIT 2"); }
+  ; 
 
 select_expr: expr ;
 

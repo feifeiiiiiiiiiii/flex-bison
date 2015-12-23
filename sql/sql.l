@@ -16,6 +16,11 @@ int oldstate;
 SELECT { return SELECT; }
 FROM { return FROM; }
 WHERE { return WHERE; }
+LIMIT { return LIMIT;  }
+ASC   { return ASC; }
+DESC  { return DESC; }
+ORDER { return ORDER; }
+BY    { return BY; }
 
 -?[0-9]+            { yylval.intval = atoi(yytext); return INTNUM; } 
 
