@@ -1,4 +1,5 @@
 %{
+var rpnList = [];
 %}
 %lex
 %options case-insensitive
@@ -51,26 +52,29 @@
 %%
 
 stmt_list: 
-	| stmt SEMICOLON EOF {return ; }
-	| stmt_list SEMICOLON EOF {return ; }
+	| stmt SEMICOLON EOF {return rpnList; }
+	| stmt_list SEMICOLON EOF {return rpnList; }
 	;
 
-stmt: select_stmt { console.log('STMT'); }
+stmt: select_stmt { rpnList.push({op: 'STMT'}); }
 	;
 
-select_stmt: SELECT select_opts FROM table_references opt_where opt_orderby opt_limit
-			{ console.log('SELECT', $1); }
+select_stmt: SELECT select_opts select_expr_list FROM table_references opt_where opt_orderby opt_limit
+			{ rpnList.push({op: 'SELECT', args: [$2, $3]});  }
 			;
 
-select_opts: expr
-	| select_opts ',' expr
-	;
+select_opts: { $$ = 0; };
 
 opt_where: 
-	| WHERE expr { console.log('WHERE') }
+	| WHERE expr { rpnList.push({op: 'WHERE', args: []}); }
 	;
 
-table_references: table_reference { $$ = $1; }
+select_expr_list: select_expr { $$ = 1; }
+	| select_expr_list ',' select_expr { $$ = $1 + 1; }
+	| '*' { rpnList.push({op: 'SELECTALL'}); $$ = 1; }
+	;
+
+table_references: table_reference { $$ = 1; }
 	| table_reference ',' table_reference { $$ = $1 + 1; }
 	;
 
@@ -78,16 +82,16 @@ table_reference: table_factor;
 
 
 table_factor: 
-	| NAME { console.log('table', $1); }
-	| NAME '.' NAME { console.log('table', $1, $3);}
+	| NAME { rpnList.push({op: 'TABLE', args: [$1]}); }
+	| NAME '.' NAME { rpnList.push({op: 'TABLE', args: [$1, $3]}); }
 	;
 
 opt_orderby: 
-	| ORDER BY groupby_list {console.log('orderby ', $3);}
+	| ORDER BY groupby_list { rpnList.push({op: 'ORDERBY', args: [$3]}); }
 	;
 
-groupby_list: expr opt_asc_desc {console.log("groupby", $2); $$ = 1;}
-	| groupby_list ',' expr opt_asc_desc {console.log('groupby', $4); $$ = $1 + 1;}
+groupby_list: expr opt_asc_desc { rpnList.push({op: 'GROUPBY', args: [$2]}); $$ = 1;}
+	| groupby_list ',' expr opt_asc_desc {rpnList.push({op: 'GROUPBY', args: [$4]}); $$ = $1 + 1;}
 	;
 
 opt_asc_desc: {$$ = 0;}
@@ -95,23 +99,25 @@ opt_asc_desc: {$$ = 0;}
 	| DESC {$$ = 1;}
 	;
 
-opt_limit: | LIMIT expr {console.log('limit 1');}
-	| LIMIT expr ',' expr {console.log('limit 2');}
+opt_limit: | LIMIT expr { rpnList.push({op: 'LIMIT', args: [$1]}); }
+	| LIMIT expr ',' expr { rpnList.push({op: 'LIMIT', args: [$2, $3]});  }
 	;
 
-expr: NAME { console.log('name', $1); }
-	| NAME '.' NAME { console.log('name', $1, $3); }
-	| STRING { console.log('string', $1); }
-	| NUMBER { console.log('number', $1); }
-	| STAR { console.log('star', $1); }
-	| expr NQ expr {console.log('nq', $2);}
-	| expr EQ expr {console.log('eq', $2);}
-	| expr GT expr {console.log('gt', $2);}
-	| expr GTE expr {console.log('gte', $2);}
-	| expr LT expr {console.log('lt', $2);}
-	| expr LTE expr {console.log('lte', $2);}
-	| expr OR expr {console.log('and', $2);}
-	| expr AND expr {console.log('and');}
-	| '(' expr AND expr ')' {console.log('and');}
-	| '(' expr OR expr ')' {console.log('or');}
+select_expr: expr ;
+
+expr: NAME { rpnList.push({op: 'NAME', args: [$1]}); }
+	| NAME '.' NAME { rpnList.push({op: 'NAME', args: [$1, $3]}); }
+	| STRING { rpnList.push({op: 'STRING', args: [$1]}); }
+	| NUMBER { rpnList.push({op: 'NUMBER', args: [$1]}); }
+	| STAR { rpnList.push({op: 'STAR', args: []}); }
+	| expr NQ expr {rpnList.push({op: 'NQ'});}
+	| expr EQ expr {rpnList.push({op: 'EQ'});}
+	| expr GT expr {rpnList.push({op: 'GT'});}
+	| expr GTE expr {rpnList.push({op: 'GTE'});}
+	| expr LT expr {rpnList.push({op: 'LT'});}
+	| expr LTE expr {rpnList.push({op: 'LTE'});}
+	| expr OR expr {rpnList.push({op: 'OR'}); }
+	| expr AND expr {rpnList.push({op: 'AND'});}
+	| '(' expr AND expr ')' {rpnList.push({op: 'AND'});}
+	| '(' expr OR expr ')' {rpnList.push({op: 'OR'});}
 	;
