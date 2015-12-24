@@ -1,3 +1,5 @@
+%{
+%}
 %lex
 %options case-insensitive
 
@@ -21,6 +23,7 @@
 '!='	 return 'NQ'
 '('		 return '('
 ')'		 return ')'
+','		 return ','
 
 (\d*[.])?\d+[eE]\d+						return 'NUMBER'
 (\d*[.])?\d+							return 'NUMBER'
@@ -48,8 +51,8 @@
 %%
 
 stmt_list: 
-	| stmt SEMICOLON EOF
-	| stmt_list SEMICOLON EOF
+	| stmt SEMICOLON EOF {return ; }
+	| stmt_list SEMICOLON EOF {return ; }
 	;
 
 stmt: select_stmt { console.log('STMT'); }
@@ -59,7 +62,9 @@ select_stmt: SELECT select_opts FROM table_references opt_where opt_orderby opt_
 			{ console.log('SELECT', $1); }
 			;
 
-select_opts: expr;
+select_opts: expr
+	| select_opts ',' expr
+	;
 
 opt_where: 
 	| WHERE expr { console.log('WHERE') }
